@@ -69,6 +69,7 @@ struct RAMBlock {
      * could not have been valid on the source.
      */
     ram_addr_t postcopy_length;
+    unsigned long *virt_to_phys_table;
 };
 #endif
 #endif

@@ -853,6 +853,10 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->compress_threads = s->parameters.compress_threads;
     params->has_compress_wait_thread = true;
     params->compress_wait_thread = s->parameters.compress_wait_thread;
+    params->has_compress_with_qat = true;
+    params->compress_with_qat = s->parameters.compress_with_qat;
+    params->has_qat_zero_copy = true;
+    params->qat_zero_copy = s->parameters.qat_zero_copy;
     params->has_decompress_threads = true;
     params->decompress_threads = s->parameters.decompress_threads;
     params->has_throttle_trigger_threshold = true;
@@ -1487,6 +1491,14 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->compress_wait_thread = params->compress_wait_thread;
     }
 
+    if (params->has_compress_with_qat) {
+        dest->compress_with_qat = params->compress_with_qat;
+    }
+
+    if (params->has_qat_zero_copy) {
+        dest->qat_zero_copy = params->qat_zero_copy;
+    }
+
     if (params->has_decompress_threads) {
         dest->decompress_threads = params->decompress_threads;
     }
@@ -1582,6 +1594,14 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_compress_wait_thread) {
         s->parameters.compress_wait_thread = params->compress_wait_thread;
+    }
+
+    if (params->has_compress_with_qat) {
+        s->parameters.compress_with_qat = params->compress_with_qat;
+    }
+
+    if (params->has_qat_zero_copy) {
+        s->parameters.qat_zero_copy = params->qat_zero_copy;
     }
 
     if (params->has_decompress_threads) {
@@ -1711,6 +1731,27 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
 
     if (!migrate_params_check(&tmp, errp)) {
         /* Invalid parameter */
+        return;
+    }
+
+    /*
+     * qat_zero_copy_setup() is time consuming, because it pins all the guest
+     * memory.
+     *
+     * It is OK for the migration destination side to call it here, as the
+     * guest isn't running.
+     *
+     * For the source side, call it in ram_save_setup, which is in the
+     * migration thread, and adding the overhead to that setup time wouldn't
+     * affect the migration performance. Note, we cannot call it in the
+     * ram_load_setup for the destination side, as the destination side setup
+     * happens after the migration process starts, which would affect the
+     * migration performance.
+     */
+    if (!runstate_is_running() &&
+        params->has_qat_zero_copy &&
+        params->qat_zero_copy &&
+        qat_zero_copy_setup()) {
         return;
     }
 
@@ -2413,6 +2454,11 @@ bool migrate_use_compression(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_COMPRESS];
 }
 
+bool migrate_use_multi_page(void)
+{
+    return true;
+}
+
 int migrate_compress_level(void)
 {
     MigrationState *s;
@@ -2438,6 +2484,24 @@ int migrate_compress_wait_thread(void)
     s = migrate_get_current();
 
     return s->parameters.compress_wait_thread;
+}
+
+bool migrate_compress_with_qat(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.compress_with_qat;
+}
+
+bool migrate_qat_zero_copy(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.qat_zero_copy;
 }
 
 int migrate_decompress_threads(void)
@@ -4026,6 +4090,8 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     Error *local_err = NULL;
     int64_t rate_limit;
     bool resume = s->state == MIGRATION_STATUS_POSTCOPY_PAUSED;
+    cpu_set_t cpuset;
+    int ret;
 
     /*
      * If there's a previous error, free it and prepare for another one.
@@ -4109,7 +4175,16 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     } else {
         qemu_thread_create(&s->thread, "live_migration",
                 migration_thread, s, QEMU_THREAD_JOINABLE);
+        CPU_ZERO(&cpuset);
+        /* TODO: Generally support qmp to pin migration thread and other threads */
+        CPU_SET(1, &cpuset);
+        ret = pthread_setaffinity_np(s->thread.thread, sizeof(cpu_set_t), &cpuset);
+        if (ret != 0) {
+            qemu_log("%s: fail to set affinity \n", __func__);
+            return;
+        }
     }
+
     s->migration_thread_running = true;
 }
 
@@ -4156,6 +4231,10 @@ static Property migration_properties[] = {
                       DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT),
     DEFINE_PROP_BOOL("x-compress-wait-thread", MigrationState,
                       parameters.compress_wait_thread, true),
+    DEFINE_PROP_BOOL("x-compress-with-qat", MigrationState,
+                      parameters.compress_with_qat, false),
+    DEFINE_PROP_BOOL("x-qat-zero_copy", MigrationState,
+                      parameters.qat_zero_copy, false),
     DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
                       parameters.decompress_threads,
                       DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT),
@@ -4218,6 +4297,7 @@ static Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-auto-converge", MIGRATION_CAPABILITY_AUTO_CONVERGE),
     DEFINE_PROP_MIG_CAP("x-zero-blocks", MIGRATION_CAPABILITY_ZERO_BLOCKS),
     DEFINE_PROP_MIG_CAP("x-compress", MIGRATION_CAPABILITY_COMPRESS),
+    DEFINE_PROP_MIG_CAP("x-compress-qat", MIGRATION_CAPABILITY_COMPRESS_QAT),
     DEFINE_PROP_MIG_CAP("x-events", MIGRATION_CAPABILITY_EVENTS),
     DEFINE_PROP_MIG_CAP("x-postcopy-ram", MIGRATION_CAPABILITY_POSTCOPY_RAM),
     DEFINE_PROP_MIG_CAP("x-colo", MIGRATION_CAPABILITY_X_COLO),
@@ -4274,6 +4354,8 @@ static void migration_instance_init(Object *obj)
     /* Set has_* up only for parameter checks */
     params->has_compress_level = true;
     params->has_compress_threads = true;
+    params->has_compress_with_qat = true;
+    params->has_qat_zero_copy = true;
     params->has_decompress_threads = true;
     params->has_throttle_trigger_threshold = true;
     params->has_cpu_throttle_initial = true;
