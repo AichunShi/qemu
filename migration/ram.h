@@ -33,13 +33,32 @@
 #include "exec/cpu-common.h"
 #include "io/channel.h"
 
+/* Batch saving 63 pages by default */
+#define RAM_SAVE_MULTI_PAGE_NUM 63
+
+typedef struct MultiPageAddr {
+    unsigned long pages;
+    unsigned long last_idx;
+    unsigned long addr[RAM_SAVE_MULTI_PAGE_NUM];
+} MultiPageAddr;
+
 extern MigrationStats ram_counters;
 extern XBZRLECacheStats xbzrle_counters;
 extern CompressionStats compression_counters;
 
+unsigned long multi_page_addr_get_one(MultiPageAddr *mpa, unsigned long idx);
+
 int xbzrle_cache_resize(int64_t new_size, Error **errp);
 uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_total(void);
+int qat_zero_copy_setup(void);
+
+void save_compressed_page_header(RAMBlock *block,
+                                 MultiPageAddr *mpa,
+                                 uint64_t bytes,
+                                 uint32_t checksum);
+void save_compressed_data(void *data, uint32_t bytes);
+void save_uncompressed_page(RAMBlock *block, MultiPageAddr *mpa);
 
 int multifd_save_setup(void);
 void multifd_save_cleanup(void);

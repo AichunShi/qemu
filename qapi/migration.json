@@ -420,6 +420,8 @@
 #
 # @validate-uuid: Send the UUID of the source to allow the destination
 #                 to ensure it is the same. (since 4.2)
+# @compress-qat: If enabled, QEMU will offload LV migration data compression and
+#           decompression to Intel QAT
 #
 # Since: 1.2
 ##
@@ -428,7 +430,7 @@
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
-           'x-ignore-shared', 'validate-uuid' ] }
+           'x-ignore-shared', 'validate-uuid', 'compress-qat' ] }
 
 ##
 # @MigrationCapabilityStatus:
@@ -586,6 +588,13 @@
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    Defaults to 99. (Since 3.1)
 #
+# @compress-with-qat: Select QAT to compress/decompress data for LV
+#                    migration
+#
+# @qat-zero-copy: Enable zero copy for QEMU memory during LV migration
+#
+# @qat-dynamic-compress: Enable dynamic compress during LV migraion
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -598,7 +607,8 @@
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
-           'max-cpu-throttle' ] }
+           'max-cpu-throttle', 'compress-with-qat', 'qat-zero-copy',
+           'qat-dynamic-compress' ] }
 
 ##
 # @MigrateSetParameters:
@@ -688,6 +698,14 @@
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    The default value is 99. (Since 3.1)
 #
+# @compress-with-qat: Indicate to use QAT for LV migration
+#
+# @qat-zero-copy: Use zero copy of QEMU memory for LV migration
+#
+# @compress-multi-page: Set how many pages to do COMP/DECOMP in one shot
+#
+# @qat-dyn-compress: enable dynamic compress
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -713,7 +731,11 @@
             '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
-	    '*max-cpu-throttle': 'int' } }
+	    '*max-cpu-throttle': 'int',
+	    '*compress-with-qat': 'bool',
+	    '*qat-zero-copy': 'bool',
+	    '*compress-multi-page': 'int',
+	    '*qat-dyn-compress': 'bool' } }
 
 ##
 # @migrate-set-parameters:
@@ -823,6 +845,14 @@
 #                    Defaults to 99.
 #                     (Since 3.1)
 #
+# @compress-with-qat: indicate to use QAT for LV migration
+#
+# @qat-zero-copy: use zero copy of QEMU memory for LV migration
+#
+# @compress-multi-page: enable handling multiple pages during COM/DECOM
+#
+# @qat-dyn-compress: enable dynamic compress
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -846,7 +876,11 @@
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
 	    '*max-postcopy-bandwidth': 'size',
-            '*max-cpu-throttle':'uint8'} }
+            '*max-cpu-throttle':'uint8',
+	    '*compress-with-qat':'bool',
+	    '*qat-zero-copy':'bool',
+	    '*compress-multi-page':'uint64',
+	    '*qat-dyn-compress':'bool'} }
 
 ##
 # @query-migrate-parameters:

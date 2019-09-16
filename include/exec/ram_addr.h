@@ -46,7 +46,6 @@ struct RAMBlock {
     unsigned long *bmap;
     /* bitmap of already received pages in postcopy */
     unsigned long *receivedmap;
-
     /*
      * bitmap to track already cleared dirty bitmap.  When the bit is
      * set, it means the corresponding memory chunk needs a log-clear.
@@ -62,6 +61,7 @@ struct RAMBlock {
      */
     unsigned long *clear_bmap;
     uint8_t clear_bmap_shift;
+    unsigned long *virt_to_phys_table;
 };
 
 /**
