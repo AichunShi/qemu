@@ -1098,4 +1098,7 @@ void qat_cleanup(void)
     }
     g_free(qat_dev->instances);
     g_free(qat_dev);
+
+    icp_sal_userStop();
+    qaeMemDestroy();
 }
