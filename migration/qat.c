@@ -19,6 +19,8 @@
 
 #define PAGEMAP_GFN_MASK 0x7fffffffffffff
 
+#define MAX_PROCESS_NUM 64
+
 extern int32_t qaeMemInit(void);
 extern void qaeMemDestroy(void);
 extern void *qaeMemAlloc(size_t memsize);
@@ -1007,9 +1009,11 @@ static void qat_instance_cleanup(QatInstance *instance)
 int qat_setup(QatSetupType type)
 {
     uint16_t instance_num;
-    int ret, i = -1;
+    int ret, processNum, i = -1;
     CpaInstanceHandle *instance_handles;
     CpaStatus status;
+    char ProcessNamePrefix[] = "SSL";
+    char ProcessName[10] = "\0";
 
     if (type >= QAT_SETUP_MAX)
         return -1;
@@ -1023,8 +1027,17 @@ int qat_setup(QatSetupType type)
         return -1;
     }
 
-    status = icp_sal_userStart("SSL");
-    if (status != CPA_STATUS_SUCCESS) {
+    for (processNum = 0; processNum < MAX_PROCESS_NUM; processNum++) {
+	sprintf(ProcessName, "%s%d", ProcessNamePrefix, processNum);
+	qemu_log("%s: processnum = %d, processName = %s\n", __func__, processNum, ProcessName);
+	status = icp_sal_userStart(processNum ? ProcessName : ProcessNamePrefix);
+	if (status == CPA_STATUS_SUCCESS) {
+		qemu_log("%s:sal user start SSL%d\n", __func__, processNum);
+		break;
+	}
+    }
+
+    if ( processNum == MAX_PROCESS_NUM && status != CPA_STATUS_SUCCESS) {
         qemu_log("%s: unable to start SAL, status=%d\n", __func__, status);
         return -1;
     }
