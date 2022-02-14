@@ -118,7 +118,7 @@ static uint64_t qat_virt_to_phy(void *vaddr)
     return paddr;
 }
 
-static CpaBufferList *qat_buf_list_alloc(int nodeid, int bytes)
+static CpaBufferList *qat_buf_list_alloc(int nodeid, int bytes, unsigned int is_intermediate_data)
 {
     int i = 0, buf_size, buf_num;
     CpaBufferList *buf_list;
@@ -142,7 +142,7 @@ static CpaBufferList *qat_buf_list_alloc(int nodeid, int bytes)
         CpaInstanceHandle instance_handle =
                           qat_dev->instances[0].instance_handle;
 
-        status = cpaDcBufferListGetMetaSize(instance_handle, 1,
+        status = cpaDcBufferListGetMetaSize(instance_handle, 128,
                                             &meta_buf_size);
         if (status != CPA_STATUS_SUCCESS) {
             qemu_log("%s: fail to get memory size for meta data\n", __func__);
@@ -173,12 +173,12 @@ static CpaBufferList *qat_buf_list_alloc(int nodeid, int bytes)
             buf_size = TARGET_PAGE_SIZE;
         }
 
-        flat_buf[i].pData = qaeMemAllocNUMA(buf_size, nodeid, 64);
+        flat_buf[i].pData = qaeMemAllocNUMA(buf_size << is_intermediate_data, nodeid, 64);
         if (!flat_buf[i].pData) {
             qemu_log("%s: unable to alloc src buf \n", __func__);
             goto err_free_meta_buf;
         }
-        flat_buf[i++].dataLenInBytes = buf_size;
+        flat_buf[i++].dataLenInBytes = buf_size << is_intermediate_data;
         bytes -= buf_size;
     }
 
@@ -324,12 +324,12 @@ static QatReq *qat_instance_req_alloc_slow(QatInstance *instance,
     CpaBufferList *src_buf_list, *dst_buf_list;
 
     req = g_malloc0(sizeof(QatReq));
-    src_buf_list = qat_buf_list_alloc(instance->node_affinity, src_bytes);
+    src_buf_list = qat_buf_list_alloc(instance->node_affinity, src_bytes, 0);
     if (!src_buf_list) {
         goto err_src;
     }
 
-    dst_buf_list = qat_buf_list_alloc(instance->node_affinity, dst_bytes);
+    dst_buf_list = qat_buf_list_alloc(instance->node_affinity, dst_bytes, 0);
     if (!dst_buf_list) {
         goto err_dst;
     }
@@ -540,7 +540,7 @@ static int qat_instance_session_setup(QatInstance *instance, QatSetupType type)
     }
 
     if (ctx_size) {
-        ctx_buf_list = qat_buf_list_alloc(instance->node_affinity, ctx_size);
+        ctx_buf_list = qat_buf_list_alloc(instance->node_affinity, ctx_size, 0);
         if (!ctx_buf_list) {
             qemu_log("%s: fail to alloc ctx_buf_list \n", __func__);
             goto err_free_session_handle;
@@ -606,7 +606,7 @@ static int qat_instance_intermediate_buf_setup(QatInstance *instance)
 
     for (i = 0; i < buf_num; i++) {
         instance->intermediate_buf_list[i] =
-                  qat_buf_list_alloc(instance->node_affinity, QAT_REQ_BUF_SIZE * 2);
+                  qat_buf_list_alloc(instance->node_affinity, QAT_REQ_BUF_SIZE, 1);
     }
 
     return 0;
