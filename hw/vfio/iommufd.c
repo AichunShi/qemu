@@ -25,6 +25,7 @@
 #include "qemu/cutils.h"
 #include "qemu/chardev_open.h"
 #include "pci.h"
+#include "migration/migration.h"
 
 static int iommufd_cdev_map(const VFIOContainerBase *bcontainer, hwaddr iova,
                             ram_addr_t size, void *vaddr, bool readonly)
@@ -109,6 +110,32 @@ static void iommufd_cdev_unbind_and_disconnect(VFIODevice *vbasedev)
     /* Unbind is automatically conducted when device fd is closed */
     iommufd_cdev_kvm_device_del(vbasedev);
     iommufd_backend_disconnect(vbasedev->iommufd_dev.iommufd);
+}
+
+static int iommufd_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
+                                           bool start)
+{
+    const VFIOIOMMUFDContainer *container =
+        container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
+    int ret;
+    VFIOIOASHwpt *hwpt;
+
+    QLIST_FOREACH(hwpt, &container->hwpt_list, next) {
+        ret = iommufd_backend_set_dirty_tracking(container->be,
+                                                 hwpt->hwpt_id, start);
+        if (ret) {
+            goto err;
+        }
+    }
+
+    return 0;
+
+err:
+    QLIST_FOREACH(hwpt, &container->hwpt_list, next) {
+        iommufd_backend_set_dirty_tracking(container->be,
+                                           hwpt->hwpt_id, !start);
+    }
+    return ret;
 }
 
 static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
@@ -725,6 +752,7 @@ static void vfio_iommu_iommufd_class_init(ObjectClass *klass, void *data)
     vioc->detach_device = iommufd_cdev_detach;
     vioc->pci_hot_reset = iommufd_cdev_pci_hot_reset;
     vioc->host_iommu_device_init = vfio_cdev_host_iommu_device_init;
+    vioc->set_dirty_page_tracking = iommufd_set_dirty_page_tracking;
 };
 
 static const TypeInfo types[] = {
