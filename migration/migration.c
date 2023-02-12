@@ -851,6 +851,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->compress_level = s->parameters.compress_level;
     params->has_compress_threads = true;
     params->compress_threads = s->parameters.compress_threads;
+    params->has_compress_with_qat = true;
+    params->compress_with_qat = s->parameters.compress_with_qat;
     params->has_compress_wait_thread = true;
     params->compress_wait_thread = s->parameters.compress_wait_thread;
     params->has_decompress_threads = true;
@@ -1483,6 +1485,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->compress_threads = params->compress_threads;
     }
 
+    if (params->has_compress_with_qat) {
+        dest->compress_with_qat = params->compress_with_qat;
+    }
+
     if (params->has_compress_wait_thread) {
         dest->compress_wait_thread = params->compress_wait_thread;
     }
@@ -1578,6 +1584,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_compress_threads) {
         s->parameters.compress_threads = params->compress_threads;
+    }
+
+    if (params->has_compress_with_qat) {
+        s->parameters.compress_with_qat = params->compress_with_qat;
     }
 
     if (params->has_compress_wait_thread) {
@@ -2402,6 +2412,15 @@ bool migrate_postcopy_blocktime(void)
     s = migrate_get_current();
 
     return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
+}
+
+bool migrate_compress_with_qat(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.compress_with_qat;
 }
 
 bool migrate_use_compression(void)
@@ -4154,6 +4173,8 @@ static Property migration_properties[] = {
     DEFINE_PROP_UINT8("x-compress-threads", MigrationState,
                       parameters.compress_threads,
                       DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT),
+    DEFINE_PROP_BOOL("x-compress-with-qat", MigrationState,
+                      parameters.compress_with_qat, false),
     DEFINE_PROP_BOOL("x-compress-wait-thread", MigrationState,
                       parameters.compress_wait_thread, true),
     DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
@@ -4274,6 +4295,7 @@ static void migration_instance_init(Object *obj)
     /* Set has_* up only for parameter checks */
     params->has_compress_level = true;
     params->has_compress_threads = true;
+    params->has_compress_with_qat = true;
     params->has_decompress_threads = true;
     params->has_throttle_trigger_threshold = true;
     params->has_cpu_throttle_initial = true;
