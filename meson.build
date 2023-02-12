@@ -464,6 +464,7 @@ if have_system or have_tools
                       method: 'pkg-config', kwargs: static_kwargs)
 endif
 zlib = dependency('zlib', required: true, kwargs: static_kwargs)
+qatzip = dependency('qatzip', required: true, method: 'pkg-config', kwargs: static_kwargs)
 
 libaio = not_found
 if not get_option('linux_aio').auto() or have_block
@@ -3058,7 +3059,7 @@ libmigration = static_library('migration', sources: migration_files + genh,
                               name_suffix: 'fa',
                               build_by_default: false)
 migration = declare_dependency(link_with: libmigration,
-                               dependencies: [zlib, qom, io])
+                               dependencies: [qatzip, zlib, qom, io])
 softmmu_ss.add(migration)
 
 block_ss = block_ss.apply(config_host, strict: false)

@@ -25,6 +25,7 @@
 #ifndef MIGRATION_QEMU_FILE_H
 #define MIGRATION_QEMU_FILE_H
 
+#include <qatzip.h>
 #include <zlib.h>
 #include "exec/cpu-common.h"
 #include "io/channel.h"
@@ -137,6 +138,8 @@ bool qemu_file_is_writable(QEMUFile *f);
 
 #include "migration/qemu-file-types.h"
 
+void add_buf_to_iovec(QEMUFile *f, size_t len);
+uint8_t *qemu_get_pos(QEMUFile *f);
 size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset);
 size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size);
 ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
