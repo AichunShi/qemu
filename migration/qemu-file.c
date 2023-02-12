@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include <qatzip.h>
 #include <zlib.h>
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
@@ -30,7 +31,8 @@
 #include "trace.h"
 #include "qapi/error.h"
 
-#define IO_BUF_SIZE 32768
+/* with qat hw, the io buffer size need to expand */
+#define IO_BUF_SIZE 524288
 #define MAX_IOV_SIZE MIN_CONST(IOV_MAX, 64)
 
 struct QEMUFile {
@@ -45,6 +47,7 @@ struct QEMUFile {
                     when reading */
     int buf_index;
     int buf_size; /* 0 when writing */
+
     uint8_t buf[IO_BUF_SIZE];
 
     DECLARE_BITMAP(may_free, MAX_IOV_SIZE);
@@ -439,7 +442,8 @@ static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
     return 0;
 }
 
-static void add_buf_to_iovec(QEMUFile *f, size_t len)
+/*public the function and use it in other source code*/
+void add_buf_to_iovec(QEMUFile *f, size_t len)
 {
     if (!add_to_iovec(f, f->buf + f->buf_index, len, false)) {
         f->buf_index += len;
@@ -447,6 +451,11 @@ static void add_buf_to_iovec(QEMUFile *f, size_t len)
             qemu_fflush(f);
         }
     }
+}
+
+uint8_t *qemu_get_pos(QEMUFile *f)
+{
+    return f->buf + f->buf_index;
 }
 
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size,
