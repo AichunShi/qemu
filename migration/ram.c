@@ -2734,6 +2734,7 @@ static void xbzrle_cleanup(void)
 
 static void ram_save_cleanup(void *opaque)
 {
+    fprintf(stderr, "ram_save_cleanup begin\n");
     RAMState **rsp = opaque;
     RAMBlock *block;
 
@@ -2762,6 +2763,7 @@ static void ram_save_cleanup(void *opaque)
     xbzrle_cleanup();
     compress_cleanup();
     ram_state_cleanup(rsp);
+    fprintf(stderr, "ram_save_cleanup end\n");
 }
 
 static void ram_state_reset(RAMState *rs)
@@ -3359,6 +3361,7 @@ void qemu_guest_free_page_hint(void *addr, size_t len)
  */
 static int ram_save_setup(QEMUFile *f, void *opaque)
 {
+    fprintf(stderr, "ram_save_setup begin\n");
     RAMState **rsp = opaque;
     RAMBlock *block;
 
@@ -3398,7 +3401,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     multifd_send_sync_main(f);
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     qemu_fflush(f);
-
+    fprintf(stderr, "ram_save_setup end\n");
     return 0;
 }
 
@@ -3412,6 +3415,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
  */
 static int ram_save_iterate(QEMUFile *f, void *opaque)
 {
+    fprintf(stderr, "ram_load_iterate begin\n");
     RAMState **temp = opaque;
     RAMState *rs = *temp;
     int ret = 0;
@@ -3501,7 +3505,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
      */
     ram_control_after_iterate(f, RAM_CONTROL_ROUND);
 
-    flush_compressed_data(rs);
 out:
     if (ret >= 0
         && migration_is_setup_or_active(migrate_get_current()->state)) {
@@ -3515,7 +3518,7 @@ out:
     if (ret < 0) {
         return ret;
     }
-
+    fprintf(stderr, "ram_load_iterate end\n");
     return done;
 }
 
@@ -3531,6 +3534,7 @@ out:
  */
 static int ram_save_complete(QEMUFile *f, void *opaque)
 {
+    fprintf(stderr, "ram_save_complete begin\n");
     RAMState **temp = opaque;
     RAMState *rs = *temp;
     int ret = 0;
@@ -3568,7 +3572,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
         qemu_fflush(f);
     }
-
+    fprintf(stderr, "ram_save_complete end\n");
     return ret;
 }
 
@@ -3577,6 +3581,7 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
                              uint64_t *res_compatible,
                              uint64_t *res_postcopy_only)
 {
+    fprintf(stderr, "ram_save_pending begin\n");
     RAMState **temp = opaque;
     RAMState *rs = *temp;
     uint64_t remaining_size;
@@ -3599,6 +3604,7 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
     } else {
         *res_precopy_only += remaining_size;
     }
+    fprintf(stderr, "ram_save_pending end\n");
 }
 
 static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
@@ -4088,18 +4094,20 @@ void colo_release_ram_cache(void)
  */
 static int ram_load_setup(QEMUFile *f, void *opaque)
 {
+    fprintf(stderr, "ram_load_setup begin\n");
     if (decompress_init(f)) {
         return -1;
     }
 
     xbzrle_load_setup();
     ramblock_recv_map_init();
-
+    fprintf(stderr, "ram_load_setup end\n");
     return 0;
 }
 
 static int ram_load_cleanup(void *opaque)
 {
+    fprintf(stderr, "ram_load_cleanup begin\n");
     RAMBlock *rb;
 
     RAMBLOCK_FOREACH_NOT_IGNORED(rb) {
@@ -4113,7 +4121,7 @@ static int ram_load_cleanup(void *opaque)
         g_free(rb->receivedmap);
         rb->receivedmap = NULL;
     }
-
+    fprintf(stderr, "ram_load_cleanup end\n");
     return 0;
 }
 
@@ -4623,6 +4631,7 @@ static int ram_load_precopy(QEMUFile *f)
 
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
+    fprintf(stderr, "ram_load begin\n");
     int ret = 0;
     static uint64_t seq_iter;
     /*
@@ -4651,12 +4660,13 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
     trace_ram_load_complete(ret, seq_iter);
-
+    fprintf(stderr, "ram_load end\n");
     return ret;
 }
 
 static bool ram_has_postcopy(void *opaque)
 {
+    fprintf(stderr, "ram_has_postcopy begin\n");
     RAMBlock *rb;
     RAMBLOCK_FOREACH_NOT_IGNORED(rb) {
         if (ramblock_is_pmem(rb)) {
@@ -4665,7 +4675,7 @@ static bool ram_has_postcopy(void *opaque)
             return false;
         }
     }
-
+    fprintf(stderr, "ram_has_postcopy end\n");
     return migrate_postcopy_ram();
 }
 
@@ -4794,6 +4804,7 @@ out:
 
 static int ram_resume_prepare(MigrationState *s, void *opaque)
 {
+    fprintf(stderr, "ram_resume_prepare begin\n");
     RAMState *rs = *(RAMState **)opaque;
     int ret;
 
@@ -4803,7 +4814,7 @@ static int ram_resume_prepare(MigrationState *s, void *opaque)
     }
 
     ram_state_resume_prepare(rs, s->to_dst_file);
-
+    fprintf(stderr, "ram_resume_prepare end\n");
     return 0;
 }
 
