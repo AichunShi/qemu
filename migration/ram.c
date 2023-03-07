@@ -3476,9 +3476,11 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
              * During postcopy, it is necessary to make sure one whole host
              * page is sent in one chunk.
              */
+            /*
             if (migrate_postcopy_ram()) {
                 flush_compressed_data(rs);
             }
+            */
 
             /*
              * we want to check in the 1st loop, just in case it was the 1st
@@ -3509,6 +3511,7 @@ out:
     if (ret >= 0
         && migration_is_setup_or_active(migrate_get_current()->state)) {
         multifd_send_sync_main(rs->f);
+        flush_compressed_data(rs);
         qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
         qemu_fflush(f);
         ram_counters.transferred += 8;
