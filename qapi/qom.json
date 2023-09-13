@@ -809,7 +809,7 @@
 # Since: 9.0
 ##
 { 'struct': 'IOMMUFDProperties',
-  'data': { '*fd': 'str' } }
+  'data': { '*fd': 'str', '*hugepages': 'bool' } }
 
 ##
 # @AcpiGenericInitiatorProperties:
