@@ -53,6 +53,7 @@ typedef struct IOMMUFDDevice {
 void iommufd_device_init(IOMMUFDDevice *idev);
 int iommufd_device_get_hw_capabilities(IOMMUFDDevice *idev, uint64_t *caps,
                                        Error **errp);
+bool iommufd_dirty_pages_supported(IOMMUFDDevice *idev, Error **errp);
 int iommufd_backend_alloc_hwpt(int iommufd, uint32_t dev_id,
                                uint32_t pt_id, uint32_t flags,
                                uint32_t data_type, uint32_t data_len,
