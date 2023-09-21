@@ -1,0 +1,84 @@
+name: Baseline Qemu CI
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches:
+      - osve_backport_6.2.0_main
+      
+jobs:
+  build-test-for-pr:
+    permissions: write-all
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check-Change
+        id: check_code_change
+        uses: intel-innersource/frameworks.actions.check-change@main
+
+      - name: Test-Check
+        shell: bash
+        run: |
+          if [[ '${{ steps.check_code_change.outputs.change }}' != '0' ]]; then
+            echo 'Code change detected: ${{ steps.check_no.outputs.change }}'
+            exit 1
+          fi
+
+      - name: Configure-Step
+        run: |
+          ./configure --enable-sdl --enable-opengl --enable-virglrenderer --enable-system --enable-modules --audio-drv-list=pa --target-list=x86_64-softmmu --enable-kvm
+          if [ $? -eq 0 ]; then
+            echo "CONFIGURE_STEP=SUCCESS" >> "$GITHUB_ENV"
+          else
+            echo "CONFIGURE_STEP=FAILURE" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build-Step
+        run: |
+          if [ "$CONFIGURE_STEP" = "FAILURE" ]; then
+            echo "BUILD_STEP=FAILURE" >> "$GITHUB_ENV"
+          else
+            make -j16
+            if [ $? -eq 0 ]; then
+              echo "BUILD_STEP=SUCCESS" >> "$GITHUB_ENV"
+            else
+              echo "BUILD_STEP=FAILURE" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Test-Step
+        run: |
+          if [ "$BUILD_STEP" = "FAILURE" ]; then
+            echo "TEST_STEP=FAILURE" >> "$GITHUB_ENV"
+          else
+            make check-unit && make check-qtest
+            if [ $? -eq 0 ]; then
+              echo "TEST_STEP=SUCCESS" >> "$GITHUB_ENV"
+            else
+              echo "TEST_STEP=FAILURE" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Comment-PR-success
+        if: env.TEST_STEP == 'SUCCESS'
+        uses: intel-innersource/frameworks.actions.thirdparty.create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            Hello,
+            Congratulations! The CI for your pull request has been successful
+          reactions: '+1'
+
+      - name: Comment-PR-failure
+        if: env.TEST_STEP == 'FAILURE'
+        uses: intel-innersource/frameworks.actions.thirdparty.create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            Hello,
+            Sorry! The CI for your pull request has been failed
+
+      - name: Exit-with-failure
+        if: env.TEST_STEP == 'FAILURE'
+        run: |
+          echo "CI testing failed"
+          exit 1
