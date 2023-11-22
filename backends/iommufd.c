@@ -208,6 +208,35 @@ int iommufd_backend_unmap_dma(IOMMUFDBackend *be, uint32_t ioas_id,
     return ret;
 }
 
+int iommufd_backend_alloc_hwpt(int iommufd, uint32_t dev_id,
+                               uint32_t pt_id, uint32_t flags,
+                               uint32_t data_type, uint32_t data_len,
+                               void *data_ptr, uint32_t *out_hwpt)
+{
+    int ret;
+    struct iommu_hwpt_alloc alloc_hwpt = {
+        .size = sizeof(struct iommu_hwpt_alloc),
+        .flags = flags,
+        .dev_id = dev_id,
+        .pt_id = pt_id,
+        .data_type = data_type,
+        .data_len = data_len,
+        .data_uptr = (uint64_t)data_ptr,
+        .__reserved = 0,
+    };
+
+    ret = ioctl(iommufd, IOMMU_HWPT_ALLOC, &alloc_hwpt);
+    trace_iommufd_backend_alloc_hwpt(iommufd, dev_id, pt_id, flags, data_type,
+                                     data_len, (uint64_t)data_ptr,
+                                     alloc_hwpt.out_hwpt_id, ret);
+    if (ret) {
+        error_report("IOMMU_HWPT_ALLOC failed: %m");
+    } else {
+        *out_hwpt = alloc_hwpt.out_hwpt_id;
+    }
+    return !ret ? 0 : -errno;
+}
+
 static const TypeInfo iommufd_backend_info = {
     .name = TYPE_IOMMUFD_BACKEND,
     .parent = TYPE_OBJECT,
