@@ -234,3 +234,28 @@ void iommufd_device_init(IOMMUFDDevice *idev)
     host_iommu_base_device_init(&idev->base, HID_IOMMUFD,
                                 sizeof(IOMMUFDDevice));
 }
+
+int iommufd_device_get_hw_capabilities(IOMMUFDDevice *idev, uint64_t *caps,
+                                       Error **errp)
+{
+    struct iommu_hw_info info = {
+        .size = sizeof(info),
+        .flags = 0,
+        .dev_id = idev->devid,
+        .data_len = 0,
+        .__reserved = 0,
+        .data_uptr = 0,
+        .out_capabilities = 0,
+    };
+    int ret;
+
+    ret = ioctl(idev->iommufd->fd, IOMMU_GET_HW_INFO, &info);
+    if (ret) {
+        error_setg_errno(errp, errno,
+                         "Failed to get hardware info capabilities");
+    } else {
+        *caps = info.out_capabilities;
+    }
+
+    return ret;
+}

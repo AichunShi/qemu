@@ -47,4 +47,6 @@ typedef struct IOMMUFDDevice {
 } IOMMUFDDevice;
 
 void iommufd_device_init(IOMMUFDDevice *idev);
+int iommufd_device_get_hw_capabilities(IOMMUFDDevice *idev, uint64_t *caps,
+                                       Error **errp);
 #endif
