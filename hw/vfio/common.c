@@ -207,6 +207,24 @@ bool vfio_devices_all_device_dirty_tracking(const VFIOContainerBase *bcontainer)
     return true;
 }
 
+bool vfio_device_migration_supported(VFIODevice *vbasedev)
+{
+    if (!vbasedev->migration) {
+        return false;
+    }
+
+    return vbasedev->migration->mig_flags & VFIO_MIGRATION_STOP_COPY;
+}
+
+bool vfio_device_dirty_pages_supported(VFIODevice *vbasedev)
+{
+    if (vbasedev->pre_copy_dirty_page_tracking == ON_OFF_AUTO_OFF) {
+        return false;
+    }
+
+    return !vbasedev->dirty_pages_supported;
+}
+
 /*
  * Check if all VFIO devices are running and migration is active, which is
  * essentially equivalent to the migration being in pre-copy phase.
