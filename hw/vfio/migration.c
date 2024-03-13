@@ -1047,7 +1047,7 @@ bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
         warn_report("%s: VFIO device doesn't support device dirty tracking",
                     vbasedev->name);
     }
-
+#if 0
     ret = vfio_block_multiple_devices_migration(vbasedev, errp);
     if (ret) {
         goto out_deinit;
@@ -1058,13 +1058,14 @@ bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
                    "with vIOMMU enabled", vbasedev->name);
         goto add_blocker;
     }
+#endif
 
     trace_vfio_migration_realize(vbasedev->name);
     return true;
 
 add_blocker:
     ret = vfio_block_migration(vbasedev, err, errp);
-out_deinit:
+//out_deinit:
     if (ret) {
         vfio_migration_deinit(vbasedev);
     }
