@@ -783,7 +783,9 @@ static int vfio_migration_query_flags(VFIODevice *vbasedev, uint64_t *mig_flags)
     feature->argsz = sizeof(buf);
     feature->flags = VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_MIGRATION;
     if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
-        return -errno;
+        int err = -errno;
+        error_report("ioctl VFIO_DEVICE_FEATURE err=%d", err);
+        return err;
     }
 
     *mig_flags = mig->flags;
@@ -825,6 +827,7 @@ static int vfio_migration_init(VFIODevice *vbasedev)
 
     ret = vfio_migration_query_flags(vbasedev, &mig_flags);
     if (ret) {
+        error_report("vfio_migration_query_flags err=%d", ret);
         return ret;
     }
 
