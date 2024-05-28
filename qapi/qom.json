@@ -806,6 +806,8 @@
 #     VDPA, ...), and the file descriptor to be shared with other
 #     process, e.g. DPDK.  (default: QEMU opens /dev/iommu by itself)
 #
+# @hugepages: enable/disable hugepages
+#
 # Since: 9.0
 ##
 { 'struct': 'IOMMUFDProperties',
